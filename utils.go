@@ -121,7 +121,8 @@ func Logger(next http.Handler) http.Handler {
 			log.Fatalf("error opening file: %v", err)
 		}
 		defer f.Close()
-		log.SetOutput(io.MultiWriter(os.Stdout, f))
+		//log.SetOutput(io.MultiWriter(os.Stdout, f))
+        log.SetOutput(f)
 		log.Print(buf.String())
 		//Reset buffer to be reused by the end stuff
 		buf.Reset()
@@ -134,6 +135,8 @@ func Logger(next http.Handler) http.Handler {
 
 		buf.WriteString("Returning ")
 		fmt.Fprintf(&buf, "%v", status)
+        buf.WriteString(" for ")
+        fmt.Fprintf(&buf, "%q ", r.URL.String())
 		buf.WriteString(" in ")
 		fmt.Fprintf(&buf, "%s", latency)
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
