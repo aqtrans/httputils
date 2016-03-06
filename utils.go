@@ -68,8 +68,10 @@ func GetScheme(r *http.Request) (scheme string) {
 }
 
 func TimeTrack(start time.Time, name string) {
-	elapsed := time.Since(start)
-	log.Printf("[timer] %s took %s", name, elapsed)
+    if Debug {
+        elapsed := time.Since(start)
+        log.Printf("[timer] %s took %s", name, elapsed)
+    }
 }
 
 type statusWriter struct {
