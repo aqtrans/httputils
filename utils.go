@@ -43,7 +43,20 @@ func ImgClass(s string) string {
 	if strings.HasSuffix(s, ".gif") {
 		return "gifs"
 	}
+	if strings.HasSuffix(s, ".webm") {
+		return "gifs"
+	}    
 	return "imgs"
+}
+
+func ImgExt(s string) string {
+	if strings.HasSuffix(s, ".gif") {
+		return "gif"
+	}
+	if strings.HasSuffix(s, ".webm") {
+		return "webm"
+	}
+    return ""
 }
 
 func SafeHTML(s string) template.HTML {
