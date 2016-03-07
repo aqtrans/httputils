@@ -12,16 +12,80 @@ import (
     "encoding/json"
     "crypto/rand"
     "bytes"
+    "expvar"
+    "strconv"
 )
 
 const timestamp = "2006-01-02 at 03:04:05PM"
 
-var Debug bool
+var (
+    Debug bool
+    eResCount       *expvar.Map
+    ExpIndexC         *expvar.Int
+    eFileUploads    *expvar.Int
+    eImageUploads   *expvar.Int
+    startTime = time.Now().UTC()
+)
 
 //JSON Response
 type jsonresponse struct {
 	Name    string `json:"name,omitempty"`
 	Success bool   `json:"success"`
+}
+
+func init() {
+    // Additional expvars
+    //expvar.Publish("Goroutines",expvar.Func(expGoroutines))
+    expvar.Publish("Uptime", expvar.Func(expUptime))
+    ExpIndexC = expvar.NewInt("index_hits")
+    eResCount = expvar.NewMap("response_counts").Init()
+    //eResCount.Set("200", expvar.NewInt("200"))
+    //eResCount.Set("302", expvar.NewInt("302"))
+    //eResCount.Set("400", expvar.NewInt("400"))
+    //eResCount.Set("404", expvar.NewInt("404"))
+    //eResCount.Set("500", expvar.NewInt("500"))    
+}
+
+/*func expGoroutines() interface{} {
+	return runtime.NumGoroutine()
+}*/
+
+// uptime is an expvar.Func compliant wrapper for uptime info.
+func expUptime() interface{} {
+    now := time.Now().UTC()
+	uptime := now.Sub(startTime)
+	return map[string]interface{}{
+        "start_time":  startTime,
+        "uptime":      uptime.String(),
+        "uptime_ms":   fmt.Sprintf("%d", uptime.Nanoseconds()/1000000),
+        "server_time": now,
+    }
+}
+
+// HandleExpvars is yanked from: https://github.com/meatballhat/expvarplus/blob/master/expvarplus.go
+// HandleExpvars does the same thing as the private expvar.expvarHandler, but
+// exposed as public for pluggability into other web frameworks and generates
+// json in a maybe slightly kinda more sane way (???).
+func HandleExpvars(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	vars := map[string]interface{}{}
+
+	expvar.Do(func(kv expvar.KeyValue) {
+		var unStrd interface{}
+		json.Unmarshal([]byte(kv.Value.String()), &unStrd)
+		vars[kv.Key] = unStrd
+	})
+
+	jsonBytes, err := json.MarshalIndent(vars, "", "    ")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":%q}`, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, string(jsonBytes)+"\n")
 }
 
 func Debugln(v ...interface{}) {
@@ -59,11 +123,12 @@ func ImgExt(s string) string {
     return ""
 }
 
+//SafeHTML is a template function to ensure HTML isn't escaped
 func SafeHTML(s string) template.HTML {
 	return template.HTML(s)
 }
 
-//Hack to allow me to make full URLs due to absence of http:// from URL.Scheme in dev situations
+//GetScheme is a hack to allow me to make full URLs due to absence of http:// from URL.Scheme in dev situations
 //When behind Nginx, use X-Forwarded-Proto header to retrieve this, then just tack on "://"
 //getScheme(r) should return http:// or https://
 func GetScheme(r *http.Request) (scheme string) {
@@ -80,6 +145,8 @@ func GetScheme(r *http.Request) (scheme string) {
 	return scheme
 }
 
+//TimeTrack is a simple function to time the duration of any function you wish
+// Example (at the beginning of a function you wish to time): defer utils.TimeTrack(time.Now(), "[func name]")
 func TimeTrack(start time.Time, name string) {
     if Debug {
         elapsed := time.Since(start)
@@ -115,7 +182,8 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return written, err
 }
 
-//Custom Logging Middleware
+//Logger is my custom logging middleware
+// It prints all HTTP requests to a file called req.log, as well as helps the expvarHandler log the status codes
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
@@ -156,10 +224,24 @@ func Logger(next http.Handler) http.Handler {
 		fmt.Fprintf(&buf, "%s", latency)
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
 		log.Print(buf.String())
+        
+        // Log status code to expvar
+        logStatusCode(status)
+        
 	})
 }
 
-//Generate a random key of specific length
+//logStatusCode takes the HTTP status code from above, and tosses it into an expvar map
+func logStatusCode(c int) {
+    log.Println(c)
+    cstring := strconv.Itoa(c)
+    log.Println(cstring)
+    // From testing, it appears expvar's Map Add() function will
+    //  happily create new Keys if they do not already exist!
+    eResCount.Add(cstring, 1)
+}
+
+//RandKey generates a random key of specific length
 func RandKey(leng int8) string {
 	dictionary := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	rb := make([]byte, leng)
@@ -171,6 +253,7 @@ func RandKey(leng int8) string {
 	return sessID
 }
 
+//makeJSON cooks up formatted JSON given a glob of data
 func makeJSON(w http.ResponseWriter, data interface{}) ([]byte, error) {
 	jsonData, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
@@ -180,6 +263,10 @@ func makeJSON(w http.ResponseWriter, data interface{}) ([]byte, error) {
 	return jsonData, nil
 }
 
+//WriteJ writes a json-formatted response containing a name of an item being worked on,
+// and the success of the function performed on it
+// TODO: Probably rework this and it's associated makeJSON func, so this function is generalized
+//       and the makeJSON func is specific to my jsonresponse struct
 func WriteJ(w http.ResponseWriter, name string, success bool) error {
 	j := jsonresponse{
 		Name:    name,
