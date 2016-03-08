@@ -90,8 +90,9 @@ func HandleExpvars(w http.ResponseWriter, r *http.Request) {
 
 func Debugln(v ...interface{}) {
 	if Debug {
-		d := log.New(os.Stdout, "DEBUG: ", log.Ldate)
-		d.Println(v)
+		//d := log.New(os.Stdout, "DEBUG: ", log.Ldate)
+		//d.Println(v)
+        fmt.Println(v)
 	}
 }
 
@@ -205,8 +206,11 @@ func Logger(next http.Handler) http.Handler {
 		}
 		defer f.Close()
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
-        log.SetOutput(f)
-		log.Print(buf.String())
+        logger := log.New(&buf, "logger: ", log.Lshortfile)
+        logger.SetOutput(f)
+		logger.Print(buf.String())
+        
+        
 		//Reset buffer to be reused by the end stuff
 		buf.Reset()
 
@@ -223,7 +227,8 @@ func Logger(next http.Handler) http.Handler {
 		buf.WriteString(" in ")
 		fmt.Fprintf(&buf, "%s", latency)
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
-		log.Print(buf.String())
+		logger.Print(buf.String())
+        fmt.Println(&buf)
         
         // Log status code to expvar
         logStatusCode(status)
@@ -233,9 +238,9 @@ func Logger(next http.Handler) http.Handler {
 
 //logStatusCode takes the HTTP status code from above, and tosses it into an expvar map
 func logStatusCode(c int) {
-    log.Println(c)
+    //log.Println(c)
     cstring := strconv.Itoa(c)
-    log.Println(cstring)
+    //log.Println(cstring)
     // From testing, it appears expvar's Map Add() function will
     //  happily create new Keys if they do not already exist!
     eResCount.Add(cstring, 1)
