@@ -3,7 +3,7 @@ package utils
 import (
     "log"
     "os"
-    //"io"
+    "io"
     "time"
     "strings"
     "html/template"
@@ -286,4 +286,60 @@ func WriteJ(w http.ResponseWriter, name string, success bool) error {
 	w.Write(json)
 	Debugln(string(json))
 	return nil
+}
+
+//ServeContent checks for file existence, and if there, serves it so it can be cached
+func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
+    f, err := http.Dir(dir).Open(file)
+    if err != nil {
+        http.NotFound(w, r)
+        return
+    }
+    content := io.ReadSeeker(f)
+    http.ServeContent(w, r, file, time.Now(), content)
+    return
+}
+
+// Taken from http://reinbach.com/golang-webapps-1.html
+func StaticHandler(w http.ResponseWriter, r *http.Request) {
+    defer TimeTrack(time.Now(), "StaticHandler")
+
+    staticFile := r.URL.Path[len("/assets/"):]
+    //log.Println(staticFile)
+    if len(staticFile) != 0 {
+        /*
+        f, err := http.Dir("assets/").Open(staticFile)
+        if err == nil {
+            content := io.ReadSeeker(f)
+            http.ServeContent(w, r, staticFile, time.Now(), content)
+            return
+        }*/
+        ServeContent(w, r, "assets/", staticFile)
+        return
+    }
+    http.NotFound(w, r)
+}
+
+func FaviconHandler(w http.ResponseWriter, r *http.Request) {
+    //log.Println(r.URL.Path)
+    if r.URL.Path == "/favicon.ico" {
+        ServeContent(w, r, "assets/", "/favicon.ico")
+        return
+    } else if r.URL.Path == "/favicon.png" {
+        ServeContent(w, r, "assets/", "/favicon.png")
+        return
+    } else {
+        http.NotFound(w, r)
+        return
+    }
+
+}
+
+func RobotsHandler(w http.ResponseWriter, r *http.Request) {
+    //log.Println(r.URL.Path)
+    if r.URL.Path == "/robots.txt" {
+        ServeContent(w, r, "assets/", "/robots.txt")
+        return
+    }
+    http.NotFound(w, r)
 }
