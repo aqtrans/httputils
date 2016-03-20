@@ -90,9 +90,15 @@ func HandleExpvars(w http.ResponseWriter, r *http.Request) {
 
 func Debugln(v ...interface{}) {
 	if Debug {
+        var buf bytes.Buffer
+        debuglogger := log.New(&buf, "Debug: ", log.Ltime)
+        debuglogger.SetOutput(os.Stderr)
+        debuglogger.Print(v)
+        
 		//d := log.New(os.Stdout, "DEBUG: ", log.Ldate)
 		//d.Println(v)
-        fmt.Println(v)
+        
+        //fmt.Println(v)
 	}
 }
 
@@ -151,7 +157,12 @@ func GetScheme(r *http.Request) (scheme string) {
 func TimeTrack(start time.Time, name string) {
     if Debug {
         elapsed := time.Since(start)
-        log.Printf("[timer] %s took %s", name, elapsed)
+        //log.Printf("[timer] %s took %s", name, elapsed)
+        
+        var buf bytes.Buffer
+        timerlogger := log.New(&buf, "Timer: ", log.Ltime)
+        timerlogger.SetOutput(os.Stderr)
+        timerlogger.Printf("[timer] %s took %s", name, elapsed)
     }
 }
 
@@ -184,10 +195,16 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 }
 
 //Logger is my custom logging middleware
-// It prints all HTTP requests to a file called req.log, as well as helps the expvarHandler log the status codes
+// It prints all HTTP requests to a file called http.log, as well as helps the expvarHandler log the status codes
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
+		//Log to file
+		f, err := os.OpenFile("./http.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("error opening file: %v", err)
+		}
+		defer f.Close()        
 
 		start := time.Now()
 		writer := statusWriter{w, 0, 0}
@@ -199,16 +216,12 @@ func Logger(next http.Handler) http.Handler {
 		buf.WriteString("from ")
 		buf.WriteString(r.RemoteAddr)
 
-		//Log to file
-		f, err := os.OpenFile("./req.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			log.Fatalf("error opening file: %v", err)
-		}
-		defer f.Close()
+
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
-        logger := log.New(&buf, "logger: ", log.Lshortfile)
-        logger.SetOutput(f)
-		logger.Print(buf.String())
+        toplogger := log.New(&buf, "HTTP: ", log.LstdFlags)
+        toplogger.SetOutput(f)
+		toplogger.Print(buf.String())
+        Debugln(buf.String())
         
         
 		//Reset buffer to be reused by the end stuff
@@ -227,8 +240,11 @@ func Logger(next http.Handler) http.Handler {
 		buf.WriteString(" in ")
 		fmt.Fprintf(&buf, "%s", latency)
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
-		logger.Print(buf.String())
-        fmt.Println(&buf)
+
+        bottomlogger := log.New(&buf, "HTTP: ", log.LstdFlags)
+        bottomlogger.SetOutput(f)
+		bottomlogger.Print(buf.String())
+        Debugln(buf.String())
         
         // Log status code to expvar
         logStatusCode(status)
