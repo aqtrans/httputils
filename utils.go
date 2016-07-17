@@ -1,30 +1,30 @@
 package utils
 
 import (
-    "log"
-    "os"
-    "io"
-    "time"
-    "strings"
-    "html/template"
-    "net/http"
-    "fmt"
-    "encoding/json"
-    "crypto/rand"
-    "bytes"
-    "expvar"
-    "strconv"
+	"bytes"
+	"crypto/rand"
+	"encoding/json"
+	"expvar"
+	"fmt"
+	"html/template"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const timestamp = "2006-01-02 at 03:04:05PM"
 
 var (
-    Debug bool
-    eResCount       *expvar.Map
-    ExpIndexC         *expvar.Int
-    eFileUploads    *expvar.Int
-    eImageUploads   *expvar.Int
-    startTime = time.Now().UTC()
+	Debug         bool
+	eResCount     *expvar.Map
+	ExpIndexC     *expvar.Int
+	eFileUploads  *expvar.Int
+	eImageUploads *expvar.Int
+	startTime     = time.Now().UTC()
 )
 
 //JSON Response
@@ -34,16 +34,16 @@ type jsonresponse struct {
 }
 
 func init() {
-    // Additional expvars
-    //expvar.Publish("Goroutines",expvar.Func(expGoroutines))
-    expvar.Publish("Uptime", expvar.Func(expUptime))
-    ExpIndexC = expvar.NewInt("index_hits")
-    eResCount = expvar.NewMap("response_counts").Init()
-    //eResCount.Set("200", expvar.NewInt("200"))
-    //eResCount.Set("302", expvar.NewInt("302"))
-    //eResCount.Set("400", expvar.NewInt("400"))
-    //eResCount.Set("404", expvar.NewInt("404"))
-    //eResCount.Set("500", expvar.NewInt("500"))    
+	// Additional expvars
+	//expvar.Publish("Goroutines",expvar.Func(expGoroutines))
+	expvar.Publish("Uptime", expvar.Func(expUptime))
+	ExpIndexC = expvar.NewInt("index_hits")
+	eResCount = expvar.NewMap("response_counts").Init()
+	//eResCount.Set("200", expvar.NewInt("200"))
+	//eResCount.Set("302", expvar.NewInt("302"))
+	//eResCount.Set("400", expvar.NewInt("400"))
+	//eResCount.Set("404", expvar.NewInt("404"))
+	//eResCount.Set("500", expvar.NewInt("500"))
 }
 
 /*func expGoroutines() interface{} {
@@ -52,14 +52,14 @@ func init() {
 
 // uptime is an expvar.Func compliant wrapper for uptime info.
 func expUptime() interface{} {
-    now := time.Now().UTC()
+	now := time.Now().UTC()
 	uptime := now.Sub(startTime)
 	return map[string]interface{}{
-        "start_time":  startTime,
-        "uptime":      uptime.String(),
-        "uptime_ms":   fmt.Sprintf("%d", uptime.Nanoseconds()/1000000),
-        "server_time": now,
-    }
+		"start_time":  startTime,
+		"uptime":      uptime.String(),
+		"uptime_ms":   fmt.Sprintf("%d", uptime.Nanoseconds()/1000000),
+		"server_time": now,
+	}
 }
 
 // HandleExpvars is yanked from: https://github.com/meatballhat/expvarplus/blob/master/expvarplus.go
@@ -90,15 +90,15 @@ func HandleExpvars(w http.ResponseWriter, r *http.Request) {
 
 func Debugln(v ...interface{}) {
 	if Debug {
-        var buf bytes.Buffer
-        debuglogger := log.New(&buf, "Debug: ", log.Ltime)
-        debuglogger.SetOutput(os.Stderr)
-        debuglogger.Print(v)
-        
+		var buf bytes.Buffer
+		debuglogger := log.New(&buf, "Debug: ", log.Ltime)
+		debuglogger.SetOutput(os.Stderr)
+		debuglogger.Print(v)
+
 		//d := log.New(os.Stdout, "DEBUG: ", log.Ldate)
 		//d.Println(v)
-        
-        //fmt.Println(v)
+
+		//fmt.Println(v)
 	}
 }
 
@@ -116,7 +116,7 @@ func ImgClass(s string) string {
 	}
 	if strings.HasSuffix(s, ".webm") {
 		return "gifs"
-	}    
+	}
 	return "imgs"
 }
 
@@ -127,7 +127,7 @@ func ImgExt(s string) string {
 	if strings.HasSuffix(s, ".webm") {
 		return "webm"
 	}
-    return ""
+	return ""
 }
 
 //SafeHTML is a template function to ensure HTML isn't escaped
@@ -155,15 +155,15 @@ func GetScheme(r *http.Request) (scheme string) {
 //TimeTrack is a simple function to time the duration of any function you wish
 // Example (at the beginning of a function you wish to time): defer utils.TimeTrack(time.Now(), "[func name]")
 func TimeTrack(start time.Time, name string) {
-    if Debug {
-        elapsed := time.Since(start)
-        //log.Printf("[timer] %s took %s", name, elapsed)
-        
-        var buf bytes.Buffer
-        timerlogger := log.New(&buf, "Timer: ", log.Ltime)
-        timerlogger.SetOutput(os.Stderr)
-        timerlogger.Printf("[timer] %s took %s", name, elapsed)
-    }
+	if Debug {
+		elapsed := time.Since(start)
+		//log.Printf("[timer] %s took %s", name, elapsed)
+
+		var buf bytes.Buffer
+		timerlogger := log.New(&buf, "Timer: ", log.Ltime)
+		timerlogger.SetOutput(os.Stderr)
+		timerlogger.Printf("[timer] %s took %s", name, elapsed)
+	}
 }
 
 type statusWriter struct {
@@ -204,7 +204,7 @@ func Logger(next http.Handler) http.Handler {
 		if err != nil {
 			log.Fatalf("error opening file: %v", err)
 		}
-		defer f.Close()        
+		defer f.Close()
 
 		start := time.Now()
 		writer := statusWriter{w, 0, 0}
@@ -216,14 +216,12 @@ func Logger(next http.Handler) http.Handler {
 		buf.WriteString("from ")
 		buf.WriteString(r.RemoteAddr)
 
-
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
-        toplogger := log.New(&buf, "HTTP: ", log.LstdFlags)
-        toplogger.SetOutput(f)
+		toplogger := log.New(&buf, "HTTP: ", log.LstdFlags)
+		toplogger.SetOutput(f)
 		toplogger.Print(buf.String())
-        Debugln(buf.String())
-        
-        
+		Debugln(buf.String())
+
 		//Reset buffer to be reused by the end stuff
 		buf.Reset()
 
@@ -235,31 +233,31 @@ func Logger(next http.Handler) http.Handler {
 
 		buf.WriteString("Returning ")
 		fmt.Fprintf(&buf, "%v", status)
-        buf.WriteString(" for ")
-        fmt.Fprintf(&buf, "%q ", r.URL.String())
+		buf.WriteString(" for ")
+		fmt.Fprintf(&buf, "%q ", r.URL.String())
 		buf.WriteString(" in ")
 		fmt.Fprintf(&buf, "%s", latency)
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
 
-        bottomlogger := log.New(&buf, "HTTP: ", log.LstdFlags)
-        bottomlogger.SetOutput(f)
+		bottomlogger := log.New(&buf, "HTTP: ", log.LstdFlags)
+		bottomlogger.SetOutput(f)
 		bottomlogger.Print(buf.String())
-        Debugln(buf.String())
-        
-        // Log status code to expvar
-        logStatusCode(status)
-        
+		Debugln(buf.String())
+
+		// Log status code to expvar
+		logStatusCode(status)
+
 	})
 }
 
 //logStatusCode takes the HTTP status code from above, and tosses it into an expvar map
 func logStatusCode(c int) {
-    //log.Println(c)
-    cstring := strconv.Itoa(c)
-    //log.Println(cstring)
-    // From testing, it appears expvar's Map Add() function will
-    //  happily create new Keys if they do not already exist!
-    eResCount.Add(cstring, 1)
+	//log.Println(c)
+	cstring := strconv.Itoa(c)
+	//log.Println(cstring)
+	// From testing, it appears expvar's Map Add() function will
+	//  happily create new Keys if they do not already exist!
+	eResCount.Add(cstring, 1)
 }
 
 //RandKey generates a random key of specific length
@@ -306,56 +304,57 @@ func WriteJ(w http.ResponseWriter, name string, success bool) error {
 
 //ServeContent checks for file existence, and if there, serves it so it can be cached
 func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
-    f, err := http.Dir(dir).Open(file)
-    if err != nil {
-        http.NotFound(w, r)
-        return
-    }
-    content := io.ReadSeeker(f)
-    http.ServeContent(w, r, file, time.Now(), content)
-    return
+	f, err := http.Dir(dir).Open(file)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	content := io.ReadSeeker(f)
+	http.ServeContent(w, r, file, time.Now(), content)
+	return
 }
 
 // Taken from http://reinbach.com/golang-webapps-1.html
 func StaticHandler(w http.ResponseWriter, r *http.Request) {
-    defer TimeTrack(time.Now(), "StaticHandler")
+	staticFile := r.URL.Path[len("/assets/"):]
 
-    staticFile := r.URL.Path[len("/assets/"):]
-    //log.Println(staticFile)
-    if len(staticFile) != 0 {
-        /*
-        f, err := http.Dir("assets/").Open(staticFile)
-        if err == nil {
-            content := io.ReadSeeker(f)
-            http.ServeContent(w, r, staticFile, time.Now(), content)
-            return
-        }*/
-        ServeContent(w, r, "assets/", staticFile)
-        return
-    }
-    http.NotFound(w, r)
+	defer TimeTrack(time.Now(), "StaticHandler "+staticFile)
+
+	//log.Println(staticFile)
+	if len(staticFile) != 0 {
+		/*
+		   f, err := http.Dir("assets/").Open(staticFile)
+		   if err == nil {
+		       content := io.ReadSeeker(f)
+		       http.ServeContent(w, r, staticFile, time.Now(), content)
+		       return
+		   }*/
+		ServeContent(w, r, "assets/", staticFile)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func FaviconHandler(w http.ResponseWriter, r *http.Request) {
-    //log.Println(r.URL.Path)
-    if r.URL.Path == "/favicon.ico" {
-        ServeContent(w, r, "assets/", "/favicon.ico")
-        return
-    } else if r.URL.Path == "/favicon.png" {
-        ServeContent(w, r, "assets/", "/favicon.png")
-        return
-    } else {
-        http.NotFound(w, r)
-        return
-    }
+	//log.Println(r.URL.Path)
+	if r.URL.Path == "/favicon.ico" {
+		ServeContent(w, r, "assets/", "/favicon.ico")
+		return
+	} else if r.URL.Path == "/favicon.png" {
+		ServeContent(w, r, "assets/", "/favicon.png")
+		return
+	} else {
+		http.NotFound(w, r)
+		return
+	}
 
 }
 
 func RobotsHandler(w http.ResponseWriter, r *http.Request) {
-    //log.Println(r.URL.Path)
-    if r.URL.Path == "/robots.txt" {
-        ServeContent(w, r, "assets/", "/robots.txt")
-        return
-    }
-    http.NotFound(w, r)
+	//log.Println(r.URL.Path)
+	if r.URL.Path == "/robots.txt" {
+		ServeContent(w, r, "assets/", "/robots.txt")
+		return
+	}
+	http.NotFound(w, r)
 }
