@@ -56,7 +56,7 @@ func expUptime() interface{} {
 	uptime := now.Sub(startTime)
 	return map[string]interface{}{
 		"start_time":  startTime,
-		"uptime":      uptime.String(),
+		"app_uptime":      uptime.String(),
 		"uptime_ms":   fmt.Sprintf("%d", uptime.Nanoseconds()/1000000),
 		"server_time": now,
 	}
