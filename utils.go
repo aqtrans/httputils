@@ -36,7 +36,7 @@ type jsonresponse struct {
 func init() {
 	// Additional expvars
 	//expvar.Publish("Goroutines",expvar.Func(expGoroutines))
-	expvar.Publish("Uptime", expvar.Func(expUptime))
+	expvar.Publish("appUptime", expvar.Func(expUptime))
 	ExpIndexC = expvar.NewInt("index_hits")
 	eResCount = expvar.NewMap("response_counts").Init()
 	//eResCount.Set("200", expvar.NewInt("200"))
