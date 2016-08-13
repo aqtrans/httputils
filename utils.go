@@ -1,17 +1,16 @@
 package utils
 
 import (
+	"github.com/GeertJohan/go.rice"
 	"bytes"
 	"crypto/rand"
-	"encoding/json"
-	"expvar"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -20,73 +19,14 @@ const timestamp = "2006-01-02 at 03:04:05PM"
 
 var (
 	Debug         bool
-	eResCount     *expvar.Map
-	ExpIndexC     *expvar.Int
-	eFileUploads  *expvar.Int
-	eImageUploads *expvar.Int
 	startTime     = time.Now().UTC()
+	AssetsBox     *rice.Box
 )
 
-//JSON Response
-type jsonresponse struct {
-	Name    string `json:"name,omitempty"`
-	Success bool   `json:"success"`
+func OpenRiceBox(path string) *rice.Box {
+	return rice.MustFindBox(path)
 }
 
-func init() {
-	// Additional expvars
-	//expvar.Publish("Goroutines",expvar.Func(expGoroutines))
-	expvar.Publish("appUptime", expvar.Func(expUptime))
-	ExpIndexC = expvar.NewInt("index_hits")
-	eResCount = expvar.NewMap("response_counts").Init()
-	//eResCount.Set("200", expvar.NewInt("200"))
-	//eResCount.Set("302", expvar.NewInt("302"))
-	//eResCount.Set("400", expvar.NewInt("400"))
-	//eResCount.Set("404", expvar.NewInt("404"))
-	//eResCount.Set("500", expvar.NewInt("500"))
-}
-
-/*func expGoroutines() interface{} {
-	return runtime.NumGoroutine()
-}*/
-
-// uptime is an expvar.Func compliant wrapper for uptime info.
-func expUptime() interface{} {
-	now := time.Now().UTC()
-	uptime := now.Sub(startTime)
-	return map[string]interface{}{
-		"start_time":  startTime,
-		"app_uptime":      uptime.String(),
-		"uptime_ms":   fmt.Sprintf("%d", uptime.Nanoseconds()/1000000),
-		"server_time": now,
-	}
-}
-
-// HandleExpvars is yanked from: https://github.com/meatballhat/expvarplus/blob/master/expvarplus.go
-// HandleExpvars does the same thing as the private expvar.expvarHandler, but
-// exposed as public for pluggability into other web frameworks and generates
-// json in a maybe slightly kinda more sane way (???).
-func HandleExpvars(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-	vars := map[string]interface{}{}
-
-	expvar.Do(func(kv expvar.KeyValue) {
-		var unStrd interface{}
-		json.Unmarshal([]byte(kv.Value.String()), &unStrd)
-		vars[kv.Key] = unStrd
-	})
-
-	jsonBytes, err := json.MarshalIndent(vars, "", "    ")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":%q}`, err.Error())
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, string(jsonBytes)+"\n")
-}
 
 func Debugln(v ...interface{}) {
 	if Debug {
@@ -94,11 +34,6 @@ func Debugln(v ...interface{}) {
 		debuglogger := log.New(&buf, "Debug: ", log.Ltime)
 		debuglogger.SetOutput(os.Stderr)
 		debuglogger.Print(v)
-
-		//d := log.New(os.Stdout, "DEBUG: ", log.Ldate)
-		//d.Println(v)
-
-		//fmt.Println(v)
 	}
 }
 
@@ -244,67 +179,53 @@ func Logger(next http.Handler) http.Handler {
 		bottomlogger.Print(buf.String())
 		Debugln(buf.String())
 
-		// Log status code to expvar
-		logStatusCode(status)
-
 	})
 }
 
-//logStatusCode takes the HTTP status code from above, and tosses it into an expvar map
-func logStatusCode(c int) {
-	//log.Println(c)
-	cstring := strconv.Itoa(c)
-	//log.Println(cstring)
-	// From testing, it appears expvar's Map Add() function will
-	//  happily create new Keys if they do not already exist!
-	eResCount.Add(cstring, 1)
+func RandBytes(n int) ([]byte, error) {
+    b := make([]byte, n)
+    _, err := rand.Read(b)
+    // Note that err == nil only if we read len(b) bytes.
+    if err != nil {
+        return nil, err
+    }
+    return b, nil	
 }
 
 //RandKey generates a random key of specific length
-func RandKey(leng int8) string {
+func RandKey(n int) (string, error) {
+	/*
 	dictionary := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	rb := make([]byte, leng)
 	rand.Read(rb)
 	for k, v := range rb {
 		rb[k] = dictionary[v%byte(len(dictionary))]
 	}
-	sessID := string(rb)
-	return sessID
-}
-
-//makeJSON cooks up formatted JSON given a glob of data
-func makeJSON(w http.ResponseWriter, data interface{}) ([]byte, error) {
-	jsonData, err := json.MarshalIndent(data, "", "    ")
+	return string(rb)
+	*/
+	b, err := RandBytes(n)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	Debugln(string(jsonData))
-	return jsonData, nil
-}
+	return base64.URLEncoding.EncodeToString(b), nil
 
-//WriteJ writes a json-formatted response containing a name of an item being worked on,
-// and the success of the function performed on it
-// TODO: Probably rework this and it's associated makeJSON func, so this function is generalized
-//       and the makeJSON func is specific to my jsonresponse struct
-func WriteJ(w http.ResponseWriter, name string, success bool) error {
-	j := jsonresponse{
-		Name:    name,
-		Success: success,
-	}
-	json, err := makeJSON(w, j)
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write(json)
-	Debugln(string(json))
-	return nil
 }
 
 //ServeContent checks for file existence, and if there, serves it so it can be cached
 func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
 	f, err := http.Dir(dir).Open(file)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	content := io.ReadSeeker(f)
+	http.ServeContent(w, r, file, time.Now(), content)
+	return
+}
+
+// This serves a file of the requested name from the "assets" rice box
+func ServeRiceAsset(w http.ResponseWriter, r *http.Request, file string) {
+	f, err := AssetsBox.HTTPBox().Open(file)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -322,26 +243,20 @@ func StaticHandler(w http.ResponseWriter, r *http.Request) {
 
 	//log.Println(staticFile)
 	if len(staticFile) != 0 {
-		/*
-		   f, err := http.Dir("assets/").Open(staticFile)
-		   if err == nil {
-		       content := io.ReadSeeker(f)
-		       http.ServeContent(w, r, staticFile, time.Now(), content)
-		       return
-		   }*/
-		ServeContent(w, r, "assets/", staticFile)
+		ServeRiceAsset(w, r, staticFile)
 		return
 	}
 	http.NotFound(w, r)
+	return
 }
 
 func FaviconHandler(w http.ResponseWriter, r *http.Request) {
 	//log.Println(r.URL.Path)
 	if r.URL.Path == "/favicon.ico" {
-		ServeContent(w, r, "assets/", "/favicon.ico")
+		ServeRiceAsset(w, r, "/favicon.ico")
 		return
 	} else if r.URL.Path == "/favicon.png" {
-		ServeContent(w, r, "assets/", "/favicon.png")
+		ServeRiceAsset(w, r, "/favicon.png")
 		return
 	} else {
 		http.NotFound(w, r)
@@ -353,8 +268,9 @@ func FaviconHandler(w http.ResponseWriter, r *http.Request) {
 func RobotsHandler(w http.ResponseWriter, r *http.Request) {
 	//log.Println(r.URL.Path)
 	if r.URL.Path == "/robots.txt" {
-		ServeContent(w, r, "assets/", "/robots.txt")
+		ServeRiceAsset(w, r, "/robots.txt")
 		return
 	}
 	http.NotFound(w, r)
+	return
 }
