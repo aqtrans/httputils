@@ -1,4 +1,4 @@
-package utils
+package httputils
 
 import (
 	"github.com/GeertJohan/go.rice"
