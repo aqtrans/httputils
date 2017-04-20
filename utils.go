@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"github.com/GeertJohan/go.rice"
+	//"github.com/GeertJohan/go.rice"
 	"html/template"
 	"io"
 	"log"
@@ -17,28 +17,11 @@ import (
 
 const timestamp = "2006-01-02 at 03:04:05PM"
 
-type assets struct {
-	box *Box
-}
-
-type Box struct {
-	*rice.Box
-}
-
 var (
 	Debug     bool
 	startTime = time.Now().UTC()
 	//AssetsBox *rice.Box
 )
-
-func OpenAssetBox(path string) *assets {
-	theBox := rice.MustFindBox(path)
-	return &assets{box: &Box{theBox}}
-}
-
-func OpenRiceBox(path string) *rice.Box {
-	return rice.MustFindBox(path)
-}
 
 func Debugln(v ...interface{}) {
 	if Debug {
@@ -232,57 +215,5 @@ func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
 	}
 	content := io.ReadSeeker(f)
 	http.ServeContent(w, r, file, time.Now(), content)
-	return
-}
-
-// This serves a file of the requested name from the "assets" rice box
-func (a *assets) ServeRiceAsset(w http.ResponseWriter, r *http.Request, file string) {
-	f, err := a.box.HTTPBox().Open(file)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	content := io.ReadSeeker(f)
-	http.ServeContent(w, r, file, time.Now(), content)
-	return
-}
-
-// Taken from http://reinbach.com/golang-webapps-1.html
-func (a *assets) StaticHandler(w http.ResponseWriter, r *http.Request) {
-	staticFile := r.URL.Path[len("/assets/"):]
-
-	defer TimeTrack(time.Now(), "StaticHandler "+staticFile)
-
-	//log.Println(staticFile)
-	if len(staticFile) != 0 {
-		a.ServeRiceAsset(w, r, staticFile)
-		return
-	}
-	http.NotFound(w, r)
-	return
-}
-
-func (a *assets) FaviconHandler(w http.ResponseWriter, r *http.Request) {
-	//log.Println(r.URL.Path)
-	if r.URL.Path == "/favicon.ico" {
-		a.ServeRiceAsset(w, r, "/favicon.ico")
-		return
-	} else if r.URL.Path == "/favicon.png" {
-		a.ServeRiceAsset(w, r, "/favicon.png")
-		return
-	} else {
-		http.NotFound(w, r)
-		return
-	}
-
-}
-
-func (a *assets) RobotsHandler(w http.ResponseWriter, r *http.Request) {
-	//log.Println(r.URL.Path)
-	if r.URL.Path == "/robots.txt" {
-		a.ServeRiceAsset(w, r, "/robots.txt")
-		return
-	}
-	http.NotFound(w, r)
 	return
 }
