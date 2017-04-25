@@ -1,5 +1,8 @@
 package httputils
 
+// By default, this package initializes routes to /assets/, /favicon.{ico,png}, and /robots.txt.
+// The /assets/ route serves files from the ./assets/ directory, for easy serving of CSS and such.
+
 import (
 	"bytes"
 	"crypto/rand"
@@ -215,5 +218,28 @@ func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
 	}
 	content := io.ReadSeeker(f)
 	http.ServeContent(w, r, file, time.Now(), content)
+	return
+}
+
+// StaticInit initializes handlers for /assets/, /robots.txt, /favicon.ico, and /favicon.png
+func StaticInit() {
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
+	http.Handle("/robots.txt", http.HandlerFunc(robots))
+	http.Handle("/favicon.ico", http.HandlerFunc(faviconICO))
+	http.Handle("/favicon.png", http.HandlerFunc(faviconPNG))
+}
+
+func robots(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./assets/robots.txt")
+	return
+}
+
+func faviconICO(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./assets/favicon.ico")
+	return
+}
+
+func faviconPNG(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./assets/favicon.png")
 	return
 }
