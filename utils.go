@@ -224,22 +224,22 @@ func ServeContent(w http.ResponseWriter, r *http.Request, dir, file string) {
 // StaticInit initializes handlers for /assets/, /robots.txt, /favicon.ico, and /favicon.png
 func StaticInit() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
-	http.Handle("/robots.txt", http.HandlerFunc(robots))
-	http.Handle("/favicon.ico", http.HandlerFunc(faviconICO))
-	http.Handle("/favicon.png", http.HandlerFunc(faviconPNG))
+	http.Handle("/robots.txt", http.HandlerFunc(Robots))
+	http.Handle("/favicon.ico", http.HandlerFunc(FaviconICO))
+	http.Handle("/favicon.png", http.HandlerFunc(FaviconPNG))
 }
 
-func robots(w http.ResponseWriter, r *http.Request) {
+func Robots(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./assets/robots.txt")
 	return
 }
 
-func faviconICO(w http.ResponseWriter, r *http.Request) {
+func FaviconICO(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./assets/favicon.ico")
 	return
 }
 
-func faviconPNG(w http.ResponseWriter, r *http.Request) {
+func FaviconPNG(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./assets/favicon.png")
 	return
 }
