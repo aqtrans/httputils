@@ -23,6 +23,7 @@ const timestamp = "2006-01-02 at 03:04:05PM"
 var (
 	Debug     bool
 	startTime = time.Now().UTC()
+	Logfile   string
 	//AssetsBox *rice.Box
 )
 
@@ -132,12 +133,16 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
-		//Log to file
-		f, err := os.OpenFile("./http.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			log.Fatalf("error opening file: %v", err)
+		//Log to file if Logfile is not blank
+		var f *os.File
+		var err error
+		if Logfile != "" {
+			f, err = os.OpenFile(Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			if err != nil {
+				log.Fatalf("error opening file: %v", err)
+			}
+			defer f.Close()
 		}
-		defer f.Close()
 
 		start := time.Now()
 		writer := statusWriter{w, 0, 0}
@@ -151,7 +156,9 @@ func Logger(next http.Handler) http.Handler {
 
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
 		toplogger := log.New(&buf, "HTTP: ", log.LstdFlags)
-		toplogger.SetOutput(f)
+		if Logfile != "" {
+			toplogger.SetOutput(f)
+		}
 		toplogger.Print(buf.String())
 		Debugln(buf.String())
 
@@ -173,7 +180,9 @@ func Logger(next http.Handler) http.Handler {
 		//log.SetOutput(io.MultiWriter(os.Stdout, f))
 
 		bottomlogger := log.New(&buf, "HTTP: ", log.LstdFlags)
-		bottomlogger.SetOutput(f)
+		if Logfile != "" {
+			bottomlogger.SetOutput(f)
+		}
 		bottomlogger.Print(buf.String())
 		Debugln(buf.String())
 
