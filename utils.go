@@ -5,6 +5,7 @@ package httputils
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -18,6 +19,9 @@ import (
 	"time"
 )
 
+type key int
+
+const timerKey key = 0
 const timestamp = "2006-01-02 at 03:04:05PM"
 
 var (
@@ -128,6 +132,21 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return written, err
 }
 
+func timeNewContext(c context.Context, t time.Time) context.Context {
+	return context.WithValue(c, timerKey, t)
+}
+
+// GetRenderTime calculates the time an HTTP request took, if the Logger middleware was used
+func GetRenderTime(c context.Context) string {
+	startTime, ok := c.Value(timerKey).(time.Time)
+	if !ok {
+		Debugln("Error: Logger middleware is not used; no startTime found in context.")
+		startTime = time.Now()
+	}
+	elapsed := time.Since(startTime)
+	return elapsed.String()
+}
+
 //Logger is my custom logging middleware
 // It prints all HTTP requests to a file called http.log, as well as helps the expvarHandler log the status codes
 func Logger(next http.Handler) http.Handler {
@@ -165,7 +184,10 @@ func Logger(next http.Handler) http.Handler {
 		//Reset buffer to be reused by the end stuff
 		buf.Reset()
 
-		next.ServeHTTP(&writer, r)
+		// Throw current time in now, to be
+		newTime := timeNewContext(r.Context(), time.Now())
+
+		next.ServeHTTP(&writer, r.WithContext(newTime))
 
 		end := time.Now()
 		latency := end.Sub(start)
