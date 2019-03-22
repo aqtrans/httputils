@@ -147,6 +147,14 @@ func GetRenderTime(c context.Context) string {
 	return elapsed.String()
 }
 
+func Timer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Throw current time in now, to be fetched by GetRenderTime
+		newTime := timeNewContext(r.Context(), time.Now())
+		next.ServeHTTP(w, r.WithContext(newTime))
+	})
+}
+
 //Logger is my custom logging middleware
 // It prints all HTTP requests to a file called http.log, as well as helps the expvarHandler log the status codes
 func Logger(next http.Handler) http.Handler {
@@ -184,10 +192,7 @@ func Logger(next http.Handler) http.Handler {
 		//Reset buffer to be reused by the end stuff
 		buf.Reset()
 
-		// Throw current time in now, to be
-		newTime := timeNewContext(r.Context(), time.Now())
-
-		next.ServeHTTP(&writer, r.WithContext(newTime))
+		next.ServeHTTP(&writer, r)
 
 		end := time.Now()
 		latency := end.Sub(start)
